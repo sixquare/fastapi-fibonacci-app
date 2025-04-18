@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A股策略分析工具</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen;
+      padding: 2em;
+    }
+    h1 { color: #90caf9; }
+    input, textarea, button {
+      background: #1e1e1e;
+      color: #fff;
+      border: 1px solid #333;
+      padding: 10px;
+      font-size: 1em;
+      margin-top: 10px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      background: #2196f3;
+      border: none;
+      cursor: pointer;
+      margin-top: 1em;
+    }
+    button:hover {
+      background: #42a5f5;
+    }
+    #result {
+      margin-top: 2em;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      padding: 1em;
+      border-radius: 5px;
+    }
+    @media (max-width: 600px) {
+      body { padding: 1em; }
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 A股策略分析工具</h1>
+  <p>请输入一个或多个股票代码（用英文逗号分隔，如 <code>600519,000858</code>）：</p>
+  <textarea id="codeInput" rows="3" placeholder="600519,000858"></textarea>
+  <button onclick="fetchStocks()">查询</button>
+
+  <div id="result"></div>
+
+  <script>
+    async function fetchStocks() {
+      const input = document.getElementById("codeInput").value.trim();
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "查询中...";
+
+      const codes = input.split(',').map(c => c.trim()).filter(Boolean);
+      if (codes.length === 0) return resultDiv.innerHTML = '⚠️ 请输入至少一个股票代码。';
+
+      let output = "";
+      for (const code of codes) {
+        output += `<h3 style='color:#4fc3f7;'>${code} 分析结果：</h3>`;
+        try {
+          const res = await fetch(`/analyze?stock_code=${code}`);
+          if (!res.ok) throw new Error("服务响应失败或股票代码无效。");
+          const data = await res.json();
+          output += renderResult(data);
+        } catch (err) {
+          output += `<span style='color:red;'>❌ ${err.message}</span><br/>`;
+        }
+      }
+      resultDiv.innerHTML = output;
+    }
+
+    function renderResult(data) {
+      return `
+        <ul>
+          <li>📌 股票名称：<b>${data["股票名称"]}</b> (${data["股票代码"]})</li>
+          <li>💰 当前收盘价：${data["收盘价"]}</li>
+          <li>🔁 38.2% 回撤位：${data["38.2%回撤位"]} → <b>${data["收盘大于38.2"] ? '✅ 突破' : '❌ 未突破'}</b></li>
+          <li>📈 MA20 均线：<b>${data["收盘大于MA20"] ? '✅ 已站上' : '❌ 未站上'}</b></li>
+          <li>📊 放量判断：<b>${data["放量上涨"] ? '✅ 放量上涨' : '❌ 无明显放量'}</b></li>
+          <li>🧱 K线形态：${data["K线形态"] || '无明显形态'}</li>
+          <li>📉 RSI：${data["RSI值"]} → <b>${data["RSI值"] > 30 ? '✅ 健康' : '❌ 超卖'}</b></li>
+          <li>⚡ MACD 金叉：<b>${data["MACD金叉"] ? '✅ 是' : '❌ 否'}</b></li>
+          <li>✅ 建议买入：<b style='color:${data["建议买入"] ? "#4caf50" : "#f44336"};'>${data["建议买入"] ? '是' : '否'}</b></li>
+        </ul>
+        <hr style="border-color:#333;" />
+      `;
+    }
+  </script>
+</body>
+</html>
